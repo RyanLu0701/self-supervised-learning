@@ -5,6 +5,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from Tool.Lookahead  import Lookahead
 import time
+from Tool.KNN import KNN
 
 class img_Dataset(Dataset):
     def __init__(self,imgs,label,transform=None, target_transform=None):
@@ -64,6 +65,7 @@ def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,schedule
 
     time_start = time.time()
     time_avg   = []
+
     testAccuracy  = 0
     trigger_times = 0
     last_loss     = 100000
@@ -147,7 +149,7 @@ def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,schedule
             print("Saving best model")
 
             torch.save(bestModel.state_dict(), "model/epoch"+str(i+1)+"_"+str(best_loss)+".pt")
-            bset_model_path = "model/epoch"+str(i+1)+"_"+str(best_loss)+".pt"
+            best_model_path = "model/epoch"+str(i+1)+"_"+str(best_loss)+".pt"
 
 
     print("Complete training :)")
@@ -181,7 +183,7 @@ def valid_test(model , test_loader,y_test):
 
     return acc
 
-def fine_tune(net, path ,test_loader,optimizer,criterion,scheduler,patience,epochs):
+def fine_tune(net, path ,test_loader,y_test,optimizer,criterion,scheduler,patience,epochs):
 
     if path:
         net.load_state_dict(torch.load(path))
@@ -277,11 +279,11 @@ def fine_tune(net, path ,test_loader,optimizer,criterion,scheduler,patience,epoc
 
 
 
-    return bestModel,best_model_path
+    return  bset_model_path
 
 
 
-def run_pred(model,path,test_loader):
+def run_pred(model,path,y_test,test_loader):
 
     if path:
         model.load_state_dict(torch.load(path))
@@ -290,18 +292,17 @@ def run_pred(model,path,test_loader):
 
     model.eval()
 
-
     num  = torch.zeros(500 ,512)
 
     count =0
 
     with torch.no_grad():
 
-        for test_samples,label in test_loader:
+        for idx ,(data,label) in  enumerate(test_loader):
 
-            test_samples = test_samples.cuda()
+            data = data.cuda()
 
-            test_outputs = model(test_samples)
+            test_outputs = model(data)
 
             for i in range(len(test_outputs)):
 
