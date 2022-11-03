@@ -22,9 +22,34 @@ from Tool.data_parallel_my_v2 import BalancedDataParallel
 from Tool.KNN import KNN
 from model import restnet50
 from Run_test import img_Dataset,train,fine_tune,Optimizer,run_pred
+import argparse
 
-data  = Rfile_train(PATH="unlabeled")
-test ,y_test= Rfile_test(PATH="test")
+###
+parser = argparse.ArgumentParser()
+parser.add_argument("batch_size",default = 64 help="data batch_size",type = int )
+parser.add_argument("lr",default = 0.01 help="learning rate ",type = int )
+parser.add_argument("optimizer",default = "Lookahead" , help="Lookahead  or  Adam ",type = int )
+parser.add_argument("k" ,            default = 5 , help = "parameter of Lookahead , if use adam make it None ",type = int )
+parser.add_argument("alhpa" ,        default = 0.5 , help = "parameter of Lookahead , if use adam make it None ",type = float)
+parser.add_argument("--gpu_parallel",default = True , help = "for gpu Parallel ",type = bool)
+parser.add_argument("gpu_number "   ,default = 2 , help = "for gpu Parallel if single gpu use 1 ",type = int )
+parser.add_argument("acc_grad"      ,default = 1, help = "for gpu if only one gpu use 1",type = int )
+parser.add_argument("scheduler_fator",default = 0.5 , help = "scheduler factor ",type = int)
+parser.add_argument("scheduler_patience",default = 3 , help = "scheduler patience",type = int)
+parser.add_argument("scheduler_min_lr",default = 0.0000001, help = "scheduler min lr",type = float)
+parser.add_argument("patience",default = 3 , help = "patience for train",type = int)
+parser.add_argument("patience_ft",default = 3 , help = "patience for fine tune",type = int)
+parser.add_argument("epochs",default = 200 , help = "epochs for train",type = int)
+parser.add_argument("epochs_ft",default = 100 , help = "epochs for fine tune",type = int)
+parser.add_argument("lr_ft",default = 0.01 , help = "epochs for fine tune",type = int)
+parser.add_argument("k_ft",default = 5 , help = "epochs for fine tune",type = int)
+parser.add_argument("alpha_ft",default = 0.5 , help = "epochs for fine tune",type = int)
+
+args = parser.parse_args()
+
+###
+data          = Rfile_train(PATH="unlabeled")
+test , y_test = Rfile_test(PATH="test")
 
 transform = transforms.Compose([
 
@@ -43,32 +68,44 @@ train_data2 = img_Dataset(data,label=None,transform=transform)
 test_data = img_Dataset(test,label=y_test,transform=transform)
 
 
-train_loader1 = DataLoader(train_data1 , batch_size=64  ,  shuffle = False)
-train_loader2 = DataLoader(train_data2 , batch_size=64 ,  shuffle = False)
-test_loader =  DataLoader(test_data , batch_size=64 ,  shuffle = False)
+train_loader1 =   DataLoader(train_data1 , batch_size=args.batch_size  ,  shuffle = False)
+train_loader2 =   DataLoader(train_data2 , batch_size=args.batch_size  ,  shuffle = False)
+test_loader   =   DataLoader(test_data   , batch_size=args.batch_size  ,  shuffle = False)
 
-print(len(train_loader1),len(test_loader))
 
-gpu0_bsz = 64 / 2
-acc_grad = 1
-model = restnet50()
-model = BalancedDataParallel(gpu0_bsz // acc_grad, model, dim=0).cuda()
+if args.gpu_parallel:
+    gpu0_bsz = args.batch_size / args.gpu_number
+    acc_grad = args.acc_grad
 
-optimzier = Optimizer(name = "Lookahead",model = model  ,lr = 0.01, k=5 , alpha = 0.5)
+    model = restnet50()
+    model = BalancedDataParallel(gpu0_bsz // acc_grad, model, dim=0).cuda()
+else:
+    model = restnet50().cuda()
+
+if args.optimizer =="Lookahead":
+    optimizer = Optimizer(name = "Lookahead",model = model  ,lr = args.lr, k=args.k , alpha = args.alpha)
+else :
+    optimizer = Optimizer(name = "Lookahead",model = model  ,lr = args.lr)
 
 criterion = ntX
 
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimzier, mode='min', factor=0.5, patience=2, min_lr=0.000001)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=args.scheduler_factor, patience=args.scheduler_patience, min_lr=args.scheduler_min_lr)
 
-best_model_path =  train(model,train_loader1,train_loader2,optimzier ,criterion,3,scheduler,600)
+best_model_path =  train(model,train_loader1,train_loader2,optimizer ,criterion,args.patience,scheduler,args.epochs)
 
 
 criterion = nn.CrossEntropyLoss()
 
-optimizer_ft = Optimizer(name = "Lookahead" , model = model ,lr = 0.01 ,k=5 , alpha = 0.5)
+if args.optimizer =="Lookahead":
 
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer_ft, mode='min', factor=0.5, patience=2, min_lr=0.000001)
-best_model_path_ft = fine_tune(model, best_model_path ,test_loader,optimizer_ft,criterion,scheduler,4,200)
+    optimizer_ft = Optimizer(name = "Lookahead",model = model  ,lr = args.lr_ft, k=args.k_ft , alpha = args.alpha_ft)
+
+else :
+
+    optimizer_ft = Optimizer(name = "Lookahead",model = model  ,lr = args.lr_ft)
+
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer_ft, mode='min', factor=args.scheduler_factor, patience=args.scheduler_patience, min_lr=args.scheduler_min_lr)
+best_model_path_ft = fine_tune(model, best_model_path ,test_loader,optimizer_ft,criterion,scheduler,args.patience_ft,args.epoch_ft)
 
 # import gc
 # gc.collect()
