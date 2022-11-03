@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from Tool.Lookahead  import Lookahead
+import time
 
 class img_Dataset(Dataset):
     def __init__(self,imgs,label,transform=None, target_transform=None):
@@ -146,9 +147,11 @@ def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,schedule
 
 def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,scheduler, epochs ):
 
+    time_start = time.time()
+    time_avg   = []
     testAccuracy  = 0
     trigger_times = 0
-    last_loss     = 0
+    last_loss     = 100000
 
     best_loss     = 100000
     for i in range(0,epochs+1):
@@ -156,8 +159,7 @@ def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,schedule
         net.train()
 
         totalLoss    = 0
-        accuracy     = 0
-        count        = 0
+
 
 
         for idx ,data in  enumerate(zip(trainLoader1,trainLoader2)):
@@ -183,8 +185,13 @@ def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,schedule
             loss.backward()
             optimizer.step()
 
+        remain_time = (((time.time()-time_start)/60)/(i+1))*(epochs-(i+1))
 
-        print(f"Epoch [{epochs}/{i}] , total loss = {totalLoss/(len(trainLoader1.dataset)/trainLoader1.batch_size)}")
+        time_avg.append(remain_time)
+
+        mean_time = round(sum(time_avg[-5:])/5,3)
+        print(f"Epoch [{epochs}/{i+1}] , total loss = {totalLoss/(len(trainLoader1.dataset)/trainLoader1.batch_size)} , estimate finish time : {mean_time}  min")
+
 
 
         current_loss = totalLoss/(len(trainLoader1.dataset)/trainLoader1.batch_size)
@@ -205,7 +212,10 @@ def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,schedule
                 return bestModel
 
         else:
-            print('reset trigger : 0')
+
+            if trigger_times>0:
+
+                print("reset trigger time to 0")
 
             trigger_times =0
 
@@ -265,6 +275,9 @@ def fine_tune(net, path ,test_loader,optimizer,criterion,scheduler,patience,epoc
     last_acc      = 0
     best_acc      = 0
 
+    time_avg = []
+    time_start = time.time()
+
     for i in range(0,epochs+1):
 
         net.train()
@@ -298,7 +311,13 @@ def fine_tune(net, path ,test_loader,optimizer,criterion,scheduler,patience,epoc
 
         valid_acc = valid_test(model = net , test_loader = test_loader , y_test = y_test)
 
-        print(f"Epoch [{epochs}/{i}] , total loss = {totalLoss/(len(test_loader.dataset)/test_loader.batch_size)} acc = {accuracy/len(test_loader.dataset)} , valid acc = {valid_acc}")
+        remain_time = (((time.time()-time_start)/60)/(i+1))*(epochs-(i+1))
+
+        time_avg.append(remain_time)
+
+        mean_time = round(sum(time_avg[-5:])/5,3)
+
+        print(f"Epoch [{epochs}/{i}] , total loss = {totalLoss/(len(test_loader.dataset)/test_loader.batch_size)} acc = {accuracy/len(test_loader.dataset)} , valid acc = {valid_acc} , estimate remain time : {mean_time}")
 
 
 
