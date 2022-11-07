@@ -336,38 +336,31 @@ def run_pred(model,test_loader,device):
     np.save("310704057.npy",num.cpu().detach().numpy())
 
 
+def pred(model,y_test,test_loader,device):
 
-# def run_final_output(model,,train_loader,path)
+    print("start run predict...")
 
-#     t = time.localtime()
+    model.eval()
 
-#     # 依指定格式輸出
-#     time_now = time.strftime("%m/%d/%Y-%H:%M:%S", t)
+    num  = torch.zeros(7294 ,512)
 
-#     predictions = []
-#     label = []
+    count =0
 
-#     print("start run predict...")
+    with torch.no_grad():
 
-#     model_ft.eval()
-#     prediction2 = []
+        for idx ,(data,label) in  enumerate(test_loader):
+
+            data = data.to(device)
+
+            test_outputs = model(data)
+
+            for i in range(len(test_outputs)):
+
+                num[count] = test_outputs[i]
+
+                count +=1
+    acc = KNN(num , torch.tensor(y_test), batch_size=32)
+
+    print(acc)
 
 
-#     num  = torch.zeros(7249 ,512)
-
-#     count =0
-
-#     with torch.no_grad():
-
-#         for test_samples in train_loader:
-#             test_samples = test_samples.cuda()
-
-#             test_outputs = model_ft(test_samples)
-
-#             for i in range(len(test_outputs)):
-
-#                 num[count] = test_outputs[i]
-
-#                 count +=1
-
-#     torch.save(num,f"final_output/final_{time_now}.npy")

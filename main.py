@@ -21,7 +21,7 @@ from Tool.Lookahead import Lookahead
 from Tool.data_parallel_my_v2 import BalancedDataParallel
 from Tool.KNN import KNN
 from model import restnet50
-from Run_test import img_Dataset,train,fine_tune,Optimizer,run_pred
+from Run_test import img_Dataset,train,fine_tune,Optimizer,run_pred,pred
 import argparse
 
 ###
@@ -80,7 +80,7 @@ model = model.to(device)
 if args.optimizer =="Lookahead":
     optimizer = Optimizer(name = "Lookahead",model = model  ,lr = args.lr, k=args.k , alpha = args.alpha)
 else :
-    optimizer = Optimizer(name = "Lookahead",model = model  ,lr = args.lr)
+    optimizer = Optimizer(name = "Adam",model = model  ,lr = args.lr)
 
 criterion = ntX
 
@@ -97,12 +97,17 @@ if args.ft_bool == True:
 
     else :
 
-        optimizer_ft = Optimizer(name = "Lookahead",model = model  ,lr = args.lr_ft)
+        optimizer_ft = Optimizer(name = "Adam",model = model  ,lr = args.lr_ft)
 
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer_ft, mode='min', factor=args.scheduler_factor, patience=args.scheduler_patience, min_lr=args.scheduler_min_lr)
     best_model_ft = fine_tune( best_model ,test_loader,y_test,optimizer_ft,criterion,scheduler,args.patience_ft,args.epochs_ft,device)
+
+    print("strat run pred")
+    pred(best_model,y_test,test_loader,device)
     run_pred(best_model,train_data1,device)
 
 else:
+    print("strat run pred")
 
+    pred(best_model,y_test,test_loader,device)
     run_pred(best_model,train_data1,device)

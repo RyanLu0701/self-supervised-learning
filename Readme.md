@@ -42,7 +42,7 @@ use main.py to strat training and predict final output
     python main.py
     ```
 
-And parameter that can be adjust
+-parameter that can be adjust
 
     ```sh
   	epochs - int ,for training
@@ -63,10 +63,12 @@ And parameter that can be adjust
 	ft_bool -bool, use fine tune or not
     ```
 
-How to use 
+-How to use 
+
     ```sh
 	python main.py --epochs=32 ....
     ```
+
 -model
 
 Model here use Restnet50 and final output change 1000 to 512 
@@ -75,7 +77,6 @@ Model here use Restnet50 and final output change 1000 to 512
 function for training、finetune and final predict.
 
 -Tool
-
 There are 5 py files here.First file is data_parallel.py this py can help us to achieve Gpu parallel and balance Gpu.
 Next KNN.py is to clustering  data ,Lookahead.py is a optimizer,nt_xent.py is a Loss function , and readfile.py is a function to read image file
 	
