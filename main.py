@@ -31,9 +31,6 @@ parser.add_argument("--lr",default = 0.01 ,help="learning rate ",type = float )
 parser.add_argument("--optimizer",default = "Lookahead" , help="Lookahead  or  Adam " )
 parser.add_argument("--k" ,            default = 5 , help = "parameter of Lookahead , if use adam make it None ",type = int )
 parser.add_argument("--alpha" ,        default = 0.5 , help = "parameter of Lookahead , if use adam make it None ",type = float)
-parser.add_argument("--gpu_parallel",default = True , help = "for gpu Parallel ",type = bool)
-parser.add_argument("--gpu_number"   ,default = 2 , help = "for gpu Parallel if single gpu use 1 ",type = int )
-parser.add_argument("--acc_grad"      ,default = 1, help = "for gpu if only one gpu use 1",type = int )
 parser.add_argument("--scheduler_factor",default = 0.5 , help = "scheduler factor ",type = float)
 parser.add_argument("--scheduler_patience",default = 3 , help = "scheduler patience",type = int)
 parser.add_argument("--scheduler_min_lr",default = 0.0000001, help = "scheduler min lr",type = float)
@@ -52,7 +49,6 @@ data          = Rfile_train(PATH="unlabeled")
 test , y_test = Rfile_test(PATH="test")
 
 transform = transforms.Compose([
-
     transforms.ToPILImage(),
     transforms.Resize(256),
     transforms.CenterCrop(224),
@@ -63,24 +59,22 @@ transform = transforms.Compose([
 
 ])
 
+
 train_data1 = img_Dataset(data,label=None,transform=transform)
 train_data2 = img_Dataset(data,label=None,transform=transform)
-test_data = img_Dataset(test,label=y_test,transform=transform)
+test_data   = img_Dataset(test,label=y_test,transform=transform)
 
 
 train_loader1 =   DataLoader(train_data1 , batch_size=args.batch_size  ,  shuffle = False)
 train_loader2 =   DataLoader(train_data2 , batch_size=args.batch_size  ,  shuffle = False)
 test_loader   =   DataLoader(test_data   , batch_size=args.batch_size  ,  shuffle = False)
 
+#device
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+print(device)
 
-if args.gpu_parallel:
-    gpu0_bsz = args.batch_size / args.gpu_number
-    acc_grad = args.acc_grad
-
-    model = restnet50()
-    model = BalancedDataParallel(gpu0_bsz // acc_grad, model, dim=0).cuda()
-else:
-    model = restnet50().cuda()
+model = restnet50()
+model = model.to(device)
 
 if args.optimizer =="Lookahead":
     optimizer = Optimizer(name = "Lookahead",model = model  ,lr = args.lr, k=args.k , alpha = args.alpha)
@@ -91,8 +85,7 @@ criterion = ntX
 
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=args.scheduler_factor, patience=args.scheduler_patience, min_lr=args.scheduler_min_lr)
 
-best_model_path =  train(model,train_loader1,train_loader2,optimizer ,criterion,args.patience,scheduler,args.epochs)
-
+best_model_path =  train(model,train_loader1,train_loader2,optimizer ,criterion,args.patience,scheduler,args.epochs,device)
 
 criterion = nn.CrossEntropyLoss()
 
@@ -105,10 +98,10 @@ else :
     optimizer_ft = Optimizer(name = "Lookahead",model = model  ,lr = args.lr_ft)
 
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer_ft, mode='min', factor=args.scheduler_factor, patience=args.scheduler_patience, min_lr=args.scheduler_min_lr)
-best_model_path_ft = fine_tune(model, best_model_path ,test_loader,y_test,optimizer_ft,criterion,scheduler,args.patience_ft,args.epochs_ft)
+best_model_path_ft = fine_tune(model, best_model_path ,test_loader,y_test,optimizer_ft,criterion,scheduler,args.patience_ft,args.epochs_ft,device)
 
 # import gc
 # gc.collect()
 # torch.cuda.empty_cache()
 
-run_pred(model , best_model_path_ft ,y_test, test_loader)
+run_pred(model , best_model_path_ft ,y_test, test_loader,device)

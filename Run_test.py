@@ -61,7 +61,7 @@ def Optimizer(name,lr,model,k=None,alpha=None):
 
 
 
-def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,scheduler, epochs ):
+def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,scheduler, epochs,device ):
 
     time_start = time.time()
     time_avg   = []
@@ -81,8 +81,8 @@ def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,schedule
 
         for idx ,data in  enumerate(zip(trainLoader1,trainLoader2)):
 
-            data_1 = data[0].cuda()
-            data_2 = data[1].cuda()
+            data_1 = data[0].to(device)
+            data_2 = data[1].to(device)
 
             optimizer.zero_grad()
 
@@ -148,8 +148,10 @@ def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,schedule
 
             print("Saving best model")
 
-            torch.save(bestModel.state_dict(), "model/epoch"+str(i+1)+"_"+str(best_loss)+".pt")
-            best_model_path = "model/epoch"+str(i+1)+"_"+str(best_loss)+".pt"
+            torch.save(bestModel.state_dict(), "model_train/epoch"+str(i+1)+"_"+str(best_loss)+".pt")
+            best_model_path = "model_train/epoch"+str(i+1)+"_"+str(best_loss)+".pt"
+
+        print(best_model_path)
 
 
     print("Complete training :)")
@@ -157,7 +159,8 @@ def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,schedule
 
     return best_model_path
 
-def valid_test(model , test_loader,y_test):
+
+def valid_test(model , test_loader,y_test,device):
 
     model.eval()
 
@@ -169,7 +172,7 @@ def valid_test(model , test_loader,y_test):
 
         for test_samples,_ in test_loader:
 
-            test_samples = test_samples.cuda()
+            test_samples = test_samples.to(device)
 
             test_outputs = model(test_samples)
 
@@ -183,7 +186,7 @@ def valid_test(model , test_loader,y_test):
 
     return acc
 
-def fine_tune(net, path ,test_loader,y_test,optimizer,criterion,scheduler,patience,epochs):
+def fine_tune(net, path ,test_loader,y_test,optimizer,criterion,scheduler,patience,epochs,device):
 
     if path:
         net.load_state_dict(torch.load(path))
@@ -205,8 +208,8 @@ def fine_tune(net, path ,test_loader,y_test,optimizer,criterion,scheduler,patien
 
         for idx ,(data,label) in  enumerate(test_loader):
 
-            data  = data.cuda()
-            label = label.cuda()
+            data  = data.to(device)
+            label = label.to(device)
             optimizer.zero_grad()
 
             data_= data.float()
@@ -226,7 +229,7 @@ def fine_tune(net, path ,test_loader,y_test,optimizer,criterion,scheduler,patien
             optimizer.step()
 
 
-        valid_acc = valid_test(model = net , test_loader = test_loader , y_test = y_test)
+        valid_acc = valid_test(model = net , test_loader = test_loader , y_test = y_test , device = device)
 
         remain_time = (((time.time()-time_start)/60)/(i+1))*(epochs-(i+1))
 
@@ -268,9 +271,8 @@ def fine_tune(net, path ,test_loader,y_test,optimizer,criterion,scheduler,patien
 
             print("Saving best model")
 
-            torch.save(bestModel.state_dict(), "model/epoch"+str(i+1)+"_"+str(best_acc)+".pt")
-            bset_model_path = "model/epoch"+str(i+1)+"_"+str(best_acc)+".pt"
-
+            torch.save(bestModel.state_dict(), "model_ft/epoch"+str(i+1)+"_"+str(best_acc)+".pt")
+            best_model_path = "model_ft/epoch"+str(i+1)+"_"+str(best_acc)+".pt"
 
 
 
@@ -279,11 +281,11 @@ def fine_tune(net, path ,test_loader,y_test,optimizer,criterion,scheduler,patien
 
 
 
-    return  bset_model_path
+    return  best_model_path
 
 
 
-def run_pred(model,path,y_test,test_loader):
+def run_pred(model,path,y_test,test_loader,device):
 
     if path:
         model.load_state_dict(torch.load(path))
@@ -300,7 +302,7 @@ def run_pred(model,path,y_test,test_loader):
 
         for idx ,(data,label) in  enumerate(test_loader):
 
-            data = data.cuda()
+            data = data.to(device)
 
             test_outputs = model(data)
 
