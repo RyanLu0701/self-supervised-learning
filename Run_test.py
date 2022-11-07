@@ -6,7 +6,7 @@ from torch.utils.data import Dataset, DataLoader
 from Tool.Lookahead  import Lookahead
 import time
 from Tool.KNN import KNN
-
+import numpy as np
 class img_Dataset(Dataset):
     def __init__(self,imgs,label,transform=None, target_transform=None):
 
@@ -149,15 +149,13 @@ def train(net, trainLoader1,trainLoader2, optimizer, criterion,patience,schedule
             print("Saving best model")
 
             torch.save(bestModel.state_dict(), "model_train/epoch"+str(i+1)+"_"+str(best_loss)+".pt")
-            best_model_path = "model_train/epoch"+str(i+1)+"_"+str(best_loss)+".pt"
 
-        print(best_model_path)
 
 
     print("Complete training :)")
 
 
-    return best_model_path
+    return bestModel
 
 
 def valid_test(model , test_loader,y_test,device):
@@ -186,10 +184,9 @@ def valid_test(model , test_loader,y_test,device):
 
     return acc
 
-def fine_tune(net, path ,test_loader,y_test,optimizer,criterion,scheduler,patience,epochs,device):
+def fine_tune(net ,test_loader,y_test,optimizer,criterion,scheduler,patience,epochs,device):
 
-    if path:
-        net.load_state_dict(torch.load(path))
+
 
     trigger_times = 0
     last_acc      = 0
@@ -204,7 +201,6 @@ def fine_tune(net, path ,test_loader,y_test,optimizer,criterion,scheduler,patien
 
         totalLoss    = 0
         accuracy     = 0
-        count        = 0
 
         for idx ,(data,label) in  enumerate(test_loader):
 
@@ -272,7 +268,6 @@ def fine_tune(net, path ,test_loader,y_test,optimizer,criterion,scheduler,patien
             print("Saving best model")
 
             torch.save(bestModel.state_dict(), "model_ft/epoch"+str(i+1)+"_"+str(best_acc)+".pt")
-            best_model_path = "model_ft/epoch"+str(i+1)+"_"+str(best_acc)+".pt"
 
 
 
@@ -281,14 +276,11 @@ def fine_tune(net, path ,test_loader,y_test,optimizer,criterion,scheduler,patien
 
 
 
-    return  best_model_path
+    return  bestModel
 
 
 
-def run_pred(model,path,y_test,test_loader,device):
-
-    if path:
-        model.load_state_dict(torch.load(path))
+def run_pred(model,y_test,test_loader,device):
 
     print("start run predict...")
 
@@ -315,6 +307,34 @@ def run_pred(model,path,y_test,test_loader,device):
     acc = KNN(num , torch.tensor(y_test), batch_size=64)
 
     print(acc)
+
+
+def run_pred(model,test_loader,device):
+
+    print("start run predict...")
+
+    model.eval()
+
+    num  = torch.zeros(7294 ,512)
+
+    count =0
+
+    with torch.no_grad():
+
+        for idx ,data in  enumerate(test_loader):
+
+            data = data.to(device)
+
+            test_outputs = model(data)
+
+            for i in range(len(test_outputs)):
+
+                num[count] = test_outputs[i]
+
+                count +=1
+
+    np.save("310704057.npy",num.cpu().detach().numpy())
+
 
 
 # def run_final_output(model,,train_loader,path)

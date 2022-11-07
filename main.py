@@ -26,7 +26,7 @@ import argparse
 
 ###
 parser = argparse.ArgumentParser()
-parser.add_argument("--batch_size",default = 64, help="data batch_size",type = int )
+parser.add_argument("--batch_size",default = 32, help="data batch_size",type = int )
 parser.add_argument("--lr",default = 0.01 ,help="learning rate ",type = float )
 parser.add_argument("--optimizer",default = "Lookahead" , help="Lookahead  or  Adam " )
 parser.add_argument("--k" ,            default = 5 , help = "parameter of Lookahead , if use adam make it None ",type = int )
@@ -41,6 +41,7 @@ parser.add_argument("--epochs_ft",default = 100 , help = "epochs for fine tune",
 parser.add_argument("--lr_ft",default = 0.01 , help = "epochs for fine tune",type = float)
 parser.add_argument("--k_ft",default = 5 , help = "epochs for fine tune",type = int)
 parser.add_argument("--alpha_ft",default = 0.5 , help = "epochs for fine tune",type = float)
+parser.add_argument("--ft_bool",default = False , help = "epochs for fine tune",type = bool)
 
 args = parser.parse_args()
 
@@ -85,23 +86,23 @@ criterion = ntX
 
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=args.scheduler_factor, patience=args.scheduler_patience, min_lr=args.scheduler_min_lr)
 
-best_model_path =  train(model,train_loader1,train_loader2,optimizer ,criterion,args.patience,scheduler,args.epochs,device)
+best_model =  train(model,train_loader1,train_loader2,optimizer ,criterion,args.patience,scheduler,args.epochs,device)
 
 criterion = nn.CrossEntropyLoss()
 
-if args.optimizer =="Lookahead":
+if args.ft_bool == True:
+    if args.optimizer =="Lookahead":
 
-    optimizer_ft = Optimizer(name = "Lookahead",model = model  ,lr = args.lr_ft, k=args.k_ft , alpha = args.alpha_ft)
+        optimizer_ft = Optimizer(name = "Lookahead",model = model  ,lr = args.lr_ft, k=args.k_ft , alpha = args.alpha_ft)
 
-else :
+    else :
 
-    optimizer_ft = Optimizer(name = "Lookahead",model = model  ,lr = args.lr_ft)
+        optimizer_ft = Optimizer(name = "Lookahead",model = model  ,lr = args.lr_ft)
 
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer_ft, mode='min', factor=args.scheduler_factor, patience=args.scheduler_patience, min_lr=args.scheduler_min_lr)
-best_model_path_ft = fine_tune(model, best_model_path ,test_loader,y_test,optimizer_ft,criterion,scheduler,args.patience_ft,args.epochs_ft,device)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer_ft, mode='min', factor=args.scheduler_factor, patience=args.scheduler_patience, min_lr=args.scheduler_min_lr)
+    best_model_ft = fine_tune( best_model ,test_loader,y_test,optimizer_ft,criterion,scheduler,args.patience_ft,args.epochs_ft,device)
+    run_pred(best_model,train_data1,device)
 
-# import gc
-# gc.collect()
-# torch.cuda.empty_cache()
+else:
 
-run_pred(model , best_model_path_ft ,y_test, test_loader,device)
+    run_pred(best_model,train_data1,device)
