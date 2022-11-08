@@ -342,7 +342,7 @@ def pred(model,y_test,test_loader,device):
 
     model.eval()
 
-    num  = torch.zeros(7294 ,512)
+    num  = torch.zeros(500 ,512)
 
     count =0
 
